@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>CM20219 – Coursework 2 – WebGL</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<style>
+		body {
+			margin: 0;
+			overflow: hidden;
+		}
+
+		canvas {
+			width: 100%;
+			height: 100%;
+		}
+	</style>
+</head>
+
+<body>
+	<script src="three-r134.js"></script>
+	<script src="OBJLoader.js"></script>
+	<script>
+		"use strict"; // https://stackoverflow.com/q/1335851/72470
+		
+
+		/*
+		Textures from www.opengameart.org, 
+		author: Zachery Slocum 
+
+		*/
+
+		// Global variables that are available in all functions.
+		// Note: You can add your own here, e.g. to store the rendering mode.
+		var camera, scene, renderer, mesh,
+		yRotate = false,
+		xRotate = false,
+		zRotate = false;
+
+        var drops = [];
+        var speeds = [];
+
+		var center = new THREE.Vector3(0, 0, 0);
+
+		var isMouseDown = false;
+		var startDragX = null;
+		var startDragY = null;
+
+		// Initialise the scene, and draw it for the first time.
+		init();
+		animate();
+
+		// Listen for keyboard events, to react to them.
+		// Note: there are also other event listeners, e.g. for mouse events.
+		document.addEventListener('keydown', handleKeyDown);
+
+		document.addEventListener('mousemove', handleMouseMove);
+		document.addEventListener('mousedown', handleMouseDown);
+		document.addEventListener('mouseup', handleMouseUp);
+
+		// Scene initialisation. This function is only run once, at the very beginning.
+		function init() {
+			scene = new THREE.Scene();
+
+			// Set up the camera, move it to (3, 4, 5) and look at the origin (0, 0, 0).
+			camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+			camera.position.set(0, 0, 1000);
+			camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+            const textureCube = new THREE.CubeTextureLoader()
+                .load(['trance_ft.jpg', 'trance_bk.jpg', 'trance_up.jpg', 'trance_dn.jpg', 'trance_rt.jpg', 'trance_lf.jpg']);
+            textureCube.mapping = THREE.CubeRefractionMapping;
+
+            scene.background = new THREE.CubeTextureLoader()
+                .load(['trance_ft.jpg', 'trance_bk.jpg', 'trance_up.jpg', 'trance_dn.jpg', 'trance_rt.jpg', 'trance_lf.jpg']);;
+
+            const geometry = new THREE.SphereGeometry(20, 50, 100);
+            var sphereMaterial = new THREE.MeshBasicMaterial( { envMap: textureCube, refractionRatio: 0.95 } );
+            
+            
+            for (var i = 0; i < 1000; i++){
+                var sphere  = new THREE.Mesh(geometry, sphereMaterial);
+                sphere.scale.set(Math.random(), Math.random()+0.7, Math.random())
+                sphere.position.set(Math.random() * 1500 - 500, Math.random() * 2000, Math.random() * 1500 - 500);
+                scene.add(sphere);
+                drops.push(sphere);
+                speeds.push(Math.random()*20 + 2);
+            }
+            
+			// Set up the Web GL renderer.
+			renderer = new THREE.WebGLRenderer({ antialias: true });
+			renderer.setPixelRatio(window.devicePixelRatio); // HiDPI/retina rendering
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			document.body.appendChild(renderer.domElement);
+
+			// Handle resizing of the browser window.
+			window.addEventListener('resize', handleResize, false);
+		}
+
+		// Handle resizing of the browser window.
+		function handleResize() {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+		}
+
+		// Animation loop function. This function is called whenever an update is required.
+		function animate() {
+			requestAnimationFrame(animate);
+            for (var i = 0; i< drops.length; i++){
+                var drop = drops[i];
+                drop.position.y -= speeds[i] ;
+                if (drop.position.y < -500){
+                    drop.position.y = 1000;
+                }
+            }
+			// Render the current scene to the screen.
+			renderer.render(scene, camera);
+		}
+
+		// Handle keyboard presses.
+		function handleKeyDown(event) {
+			switch (event.key) {
+
+			}
+		}
+		
+		function handleMouseDown(event){
+			event.preventDefault();
+			startDragX = event.clientX;
+			startDragY = event.clientY;
+			isMouseDown = true;
+
+		}
+
+		function handleMouseUp(event){
+			event.preventDefault();
+			isMouseDown = false;
+		}
+
+		function handleMouseMove(event){
+			event.preventDefault();
+			if (isMouseDown){
+				var deltaX = event.clientX - startDragX;
+				var deltaY = event.clientY - startDragY;
+
+				var radius = camera.position.length(),
+				pos = camera.position,
+				theta = Math.acos(pos.z / radius),
+		    	phi = Math.atan2(pos.y, pos.x);
+
+				theta -= deltaX
+				phi -= deltaY;
+
+				pos.x = radius * Math.sin(theta * Math.PI/360) * Math.cos(phi * Math.PI/360);
+				pos.y = radius * Math.sin(phi * Math.PI/360);
+				pos.z = radius * Math.cos(theta * Math.PI/360) * Math.cos(phi * Math.PI/360);
+				
+				camera.position.x = pos.x;
+				camera.position.y = pos.y;
+				camera.position.z = pos.z;
+				camera.lookAt(center);
+			}
+			
+		}
+	</script>
+</body>
+
+</html>

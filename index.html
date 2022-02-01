@@ -1,0 +1,285 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>THREE JS Experiments</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<style>
+		body {
+			margin: 0;
+			overflow: hidden;
+		}
+
+		canvas {
+			width: 100%;
+			height: 100%;
+		}
+	</style>
+</head>
+
+<body>
+	<script src="three-r134.js"></script>
+	<script src="OBJLoader.js"></script>
+	<script>
+		var camera, scene, renderer, mesh, wireframeMesh, vertexMesh, 
+		boxGeometry, cubeMaterial, bunny, wireframeBunny, vertexBunny,
+		pivot = new THREE.Group(),
+		yRotate = false,
+		xRotate = false,
+		zRotate = false;
+
+		var center = new THREE.Vector3(0, 0, 0);
+
+		var isMouseDown = false;
+		var startDragX = null;
+		var startDragY = null;
+
+		// Initialise the scene, and draw it for the first time.
+		init();
+		animate();
+
+		document.addEventListener('keydown', handleKeyDown);
+		document.addEventListener('mousemove', handleMouseMove);
+		document.addEventListener('mousedown', handleMouseDown);
+		document.addEventListener('mouseup', handleMouseUp);
+
+		// Scene initialisation
+		function init() {
+			scene = new THREE.Scene();
+
+			// Set up the camera, move it to (3, 4, 5) and look at the origin (0, 0, 0).
+			camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+			camera.position.set(3, 4, 5);
+			camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+			// Draw a helper grid in the x-z plane 
+			scene.add(new THREE.GridHelper(10, 20, 0xffffff));
+
+			boxGeometry = new THREE.BoxGeometry(2, 2, 2);
+			cubeMaterial = [
+				new THREE.MeshBasicMaterial({map: new THREE.TextureLoader().load('wood1.jpg'), side: THREE.FrontSide}),
+				new THREE.MeshBasicMaterial({map: new THREE.TextureLoader().load('wood2.jpg'), side: THREE.FrontSide}),
+				new THREE.MeshBasicMaterial({map: new THREE.TextureLoader().load('wood3.jpg'), side: THREE.FrontSide}),
+				new THREE.MeshBasicMaterial({map: new THREE.TextureLoader().load('wood4.jpg'), side: THREE.FrontSide}),
+				new THREE.MeshBasicMaterial({map: new THREE.TextureLoader().load('wood5.jpg'), side: THREE.FrontSide}),
+				new THREE.MeshBasicMaterial({map: new THREE.TextureLoader().load('wood6.jpg'), side: THREE.FrontSide}),
+			];
+			mesh = new THREE.Mesh(boxGeometry, cubeMaterial);
+			mesh.geometry.computeBoundingBox();
+			pivot.add(mesh);
+
+			var edges = new THREE.EdgesGeometry(boxGeometry);
+			wireframeMesh = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffc300 }));
+
+			vertexMesh = new THREE.Points(boxGeometry, new THREE.PointsMaterial({ color: 0xffc300, size: 0.2 }));
+
+			var objLoader = new THREE.OBJLoader();
+			objLoader.load('bunny-5000.obj', function(object) {
+				var boundingBox = mesh.geometry.boundingBox;
+				var scale = boundingBox.max.sub(boundingBox.min);
+
+				object.traverse(function(child){
+					if (child.isMesh){
+						var phongMaterial = new THREE.MeshPhongMaterial({ color: 0x581845 });
+						bunny = new THREE.Mesh(child.geometry, phongMaterial);
+						bunny.scale.set(1/scale.x, 1/scale.y, 1/scale.z);
+						bunny.translateX(-1/scale.x);
+
+						var edges = new THREE.EdgesGeometry(child.geometry);
+						wireframeBunny = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x581845 }));
+						wireframeBunny.scale.set(1/scale.x, 1/scale.y, 1/scale.z);
+						wireframeBunny.translateX(-1/scale.x);
+
+						vertexBunny = new THREE.Points(child.geometry, new THREE.PointsMaterial({ color: 0x581845, size: 0.02 }));
+						vertexBunny.scale.set(1/scale.x, 1/scale.y, 1/scale.z);
+						vertexBunny.translateX(-1/scale.x);
+					}
+				});
+				pivot.add(bunny)
+				
+			});
+			scene.add(pivot);
+
+			const blueLineMaterial = new THREE.LineBasicMaterial({color: 0x0000ff});
+			const greenLineMaterial = new THREE.LineBasicMaterial({color: 0x00ff00});
+			const redLineMaterial = new THREE.LineBasicMaterial({color: 0xff0000});
+
+			const xPoints = [new THREE.Vector3(100, 0, 0), new THREE.Vector3(0, 0, 0)];
+			const yPoints = [new THREE.Vector3(0, 100, 0), new THREE.Vector3(0, 0, 0)];
+			const zPoints = [new THREE.Vector3(0, 0, 100), new THREE.Vector3(0, 0, 0)];
+
+			const xLineGeometry = new THREE.BufferGeometry().setFromPoints(xPoints);
+			const yLineGeometry = new THREE.BufferGeometry().setFromPoints(yPoints);
+			const zLineGeometry = new THREE.BufferGeometry().setFromPoints(zPoints);
+
+			const xLine = new THREE.Line(xLineGeometry, redLineMaterial);
+			const yLine = new THREE.Line(yLineGeometry, greenLineMaterial);
+			const zLine = new THREE.Line(zLineGeometry, blueLineMaterial);
+			scene.add(xLine);
+			scene.add(yLine);
+			scene.add(zLine);
+
+			// Basic ambient lighting.
+			scene.add(new THREE.AmbientLight(0xffffff));
+			// create a light
+			var light = new THREE.PointLight(0xffffff, 1, );
+			light.position.set(10,10,10);
+			scene.add(light);
+			
+
+			// Set up the Web GL renderer.
+			renderer = new THREE.WebGLRenderer({ antialias: true });
+			renderer.setPixelRatio(window.devicePixelRatio); // HiDPI/retina rendering
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			document.body.appendChild(renderer.domElement);
+
+			// Handle resizing of the browser window.
+			window.addEventListener('resize', handleResize, false);
+		}
+
+		// Handle resizing of the browser window.
+		function handleResize() {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+		}
+
+		// Animation loop function. This function is called whenever an update is required.
+		function animate() {
+			requestAnimationFrame(animate);
+
+			if (yRotate){
+				pivot.rotation.y += 0.02;
+			}
+			if (xRotate){
+				pivot.rotation.x += 0.02;
+			}
+			if (zRotate){
+				pivot.rotation.z += 0.02;
+			}
+
+			// Render the current scene to the screen.
+			renderer.render(scene, camera);
+		}
+
+		// Handle keyboard presses.
+		function handleKeyDown(event) {
+			switch (event.key) {
+				// Render modes.
+				case 'f': 
+					pivot.remove(wireframeMesh);
+					pivot.remove(vertexMesh);
+					pivot.add(mesh);
+					break;
+
+				case 'g':
+					pivot.remove(wireframeBunny);
+					pivot.remove(vertexBunny);
+					pivot.add(bunny);
+					break;
+
+				case 'e': 
+					pivot.remove(mesh);
+					pivot.remove(vertexMesh);
+					pivot.add(wireframeMesh);
+					break;
+				
+				case 'r': 
+					pivot.remove(bunny);
+					pivot.remove(vertexBunny);
+					pivot.add(wireframeBunny);
+					break;
+					
+				case 'v':
+					pivot.remove(wireframeMesh);
+					pivot.remove(mesh);
+					pivot.add(vertexMesh);
+					break;
+
+				case 'b':
+					pivot.remove(bunny);
+					pivot.remove(wireframeBunny);
+					pivot.add(vertexBunny);
+					break;
+
+				case 'z':
+					zRotate = !zRotate;
+					break;
+
+				case 'x':
+					xRotate = !xRotate;
+					break;
+
+				case 'c':
+					yRotate = !yRotate;
+					break;
+
+				case 'w':
+					camera.translateY(0.4);
+					break;
+
+				case 's':
+					camera.translateY(-0.4);
+					break;
+
+				case 'd':
+					camera.translateX(0.4);
+					break;
+
+				case 'a':
+					camera.translateX(-0.4);
+					break;
+
+				case '-':
+					camera.translateZ(0.4);
+					break;
+
+				case '+':
+					camera.translateZ(-0.4);
+					break;
+			}
+		}
+		
+		function handleMouseDown(event){
+			event.preventDefault();
+			startDragX = event.clientX;
+			startDragY = event.clientY;
+			isMouseDown = true;
+
+		}
+
+		function handleMouseUp(event){
+			event.preventDefault();
+			isMouseDown = false;
+		}
+
+		function handleMouseMove(event){
+			event.preventDefault();
+			if (isMouseDown){
+				var deltaX = event.clientX - startDragX;
+				var deltaY = event.clientY - startDragY;
+
+				var radius = camera.position.length(),
+				pos = camera.position,
+				theta = Math.acos(pos.z / radius),
+		    	phi = Math.atan2(pos.y, pos.x);
+
+				theta -= deltaX
+				phi -= deltaY;
+
+				pos.x = radius * Math.sin(theta * Math.PI/360) * Math.cos(phi * Math.PI/360);
+				pos.y = radius * Math.sin(phi * Math.PI/360);
+				pos.z = radius * Math.cos(theta * Math.PI/360) * Math.cos(phi * Math.PI/360);
+				
+				camera.position.x = pos.x;
+				camera.position.y = pos.y;
+				camera.position.z = pos.z;
+				camera.lookAt(center);
+			}
+			
+		}
+	</script>
+</body>
+
+</html>
